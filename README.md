@@ -1,15 +1,15 @@
 # hip-onion-vanity
 
-A high-performance, custom-built Tor v3 vanity address generator optimized specifically for AMD GPUs using the ROCm/HIP framework.
+A high-performance, cryptographically secure Tor v3 vanity address generator optimized specifically for AMD GPUs using the ROCm/HIP framework.
 
-This miner utilizes the Montgomery Ladder (5M + 2A) algorithm and RDNA 2/3 optimized math to achieve maximum iteration speeds on cards like the Radeon 6800 XT, 7900 XTX, and similar architectures.
+This miner utilizes the Montgomery Ladder (5M + 2A) algorithm and RDNA 2/3 optimized math to achieve maximum iteration speeds. It implements a "Random Base + Linear Offset" search strategy with **automatic CSPRNG re-seeding** upon every match, ensuring generated identities are mathematically unlinkable.
 
 ## Features
 
 - **AMD Native**: Built on C++ HIP for direct hardware access (no OpenCL overhead).
+- **Cryptographically Secure**: Uses System Entropy (`std::random_device`) to generate base keys and re-seeds immediately after finding a match to prevent key correlation.
 - **Algo Optimized**: Uses "Y-Only" differential addition to reduce calculations per key by ~35%.
 - **Multi-Target**: Search for multiple prefixes simultaneously without speed loss.
-- **Zero-Copy**: GPU only interrupts the CPU when a valid match is found.
 - **RDNA Optimized**: Uses C++ intrinsics that compile to efficient `v_add_co_ci_u32` instruction chains.
 
 ## Performance
@@ -60,22 +60,29 @@ Run the miner for a specific number of seconds (e.g., 60 seconds) and then stop:
 ./vanity_miner.exe -p test -t 60
 ```
 
-## Output
+## Output & Key Usage
 
-- **Console**: Displays real-time speed (Mops/s) and total keys searched.
-- **File**: When a match is found, it is appended to `found.txt` (or `prefix.txt`) in the same directory.
+When a match is found, the miner outputs the **Raw Scalar** (Private Key) and the Onion URL.
 
 Example `found.txt` content:
 
 ```text
 ==================================================
-Onion URL:   test...d2id.onion
-Private Key: 1a2b3c4d...
-Public Key:  5e6f7g8h...
+Onion URL:   testyq5bmmrcz4plmtfel6oyrvis3wksm7yrdvr6z4ghrp6eyauvtwid.onion
+Private Key: e2b6933bc2bbd9248c4ea344b4d9465f44eb4165c7c9c652a985cb8761e9a6ed
+Public Key:  99253c43a163222cf1eb64ca45f9d88d512dd95267f111d63ecf0c78bfc4c029
 NOTE: Private Key is a RAW SCALAR (not a seed).
 ==================================================
 ```
 
+### How to use the keys
+
+The output is a **Raw Ed25519 Scalar**. To use this with Tor:
+
+1. You must convert the 64-character Hex string into a binary file named `hs_ed25519_secret_key`.
+2. The file must contain the 32-byte scalar followed by 32 bytes of random extension data (and the Tor header).
+3. Place this file in your Hidden Service directory (e.g., `/var/lib/tor/hidden_service/`).
+
 ## Disclaimer
 
-This tool is a high-performance Proof of Concept. It generates the Public Key (Y-coordinate) upon finding a match. For a fully functional onion service, you would need to extend the code to save the random seed used to generate the private key. Use for educational and security research purposes only.
+This tool generates valid Ed25519 private scalars. While it implements CSPRNG re-seeding to ensure unlinkability between found keys, users are responsible for securely handling the generated private keys. Use for educational and security research purposes only.
